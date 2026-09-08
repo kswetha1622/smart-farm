@@ -1,7 +1,14 @@
-import fs from 'fs';
 import Groq from 'groq-sdk';
 
-export const analyzeImage = async (imagePath: string, language: string, lat?: number, lon?: number): Promise<any> => {
+// Accepts an in-memory Buffer (from multer memoryStorage) and mimeType
+// instead of a file path — so this works on Vercel serverless (no disk access).
+export const analyzeImage = async (
+  imageBuffer: Buffer,
+  mimeType: string,
+  language: string,
+  lat?: number,
+  lon?: number
+): Promise<any> => {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error('GROQ_API_KEY is not configured in backend .env');
@@ -9,13 +16,8 @@ export const analyzeImage = async (imagePath: string, language: string, lat?: nu
 
   const groq = new Groq({ apiKey });
 
-  const imageBuffer = fs.readFileSync(imagePath);
-  const ext = imagePath.split('.').pop()?.toLowerCase() || 'jpeg';
-  const mimeMap: Record<string, string> = {
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp'
-  };
-  const detectedMime = mimeMap[ext] || 'image/jpeg';
   const base64Image = imageBuffer.toString('base64');
+  const detectedMime = mimeType || 'image/jpeg';
 
   const systemPrompt = `You are a highly advanced AI Agricultural Pathologist.
 Your task is to analyze the provided image of a crop, leaf, or fruit and determine its health status.
@@ -71,7 +73,7 @@ DO NOT output any markdown blocks like \`\`\`json. Return ONLY the raw JSON obje
 
   try {
     const response = await groq.chat.completions.create({
-      model: 'openai/gpt-oss-120b', // Vision-capable model available on this Groq account
+      model: 'llama-3.2-90b-vision-preview', // Groq vision model (supports image input)
       messages: [
         {
           role: 'user',

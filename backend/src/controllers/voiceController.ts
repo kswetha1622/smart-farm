@@ -82,7 +82,7 @@ CRITICAL INSTRUCTION: You MUST return your response as a pure JSON object with t
     ];
 
     const completion = await groq.chat.completions.create({
-      model: 'qwen/qwen3.8-27b', // Best available model on this Groq account
+      model: 'llama-3.3-70b-versatile', // Best available Groq text model
       messages,
       max_tokens: 1024,
       temperature: 0.5,

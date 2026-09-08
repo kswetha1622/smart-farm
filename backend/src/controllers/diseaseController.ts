@@ -5,7 +5,6 @@ import DiseaseAnalysis from '../models/DiseaseAnalysis';
 import { analyzeImage } from '../services/diseaseService';
 import { successResponse, errorResponse } from '../utils/response';
 import { getLangFromRequest } from '../utils/i18n';
-import path from 'path';
 
 // POST /api/disease/analyze
 export const analyzeDiseaseImage = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -15,7 +14,9 @@ export const analyzeDiseaseImage = async (req: AuthRequest, res: Response): Prom
       errorResponse(res, 'NO_FILE', 'Please upload a crop image (JPG, PNG, or WEBP).'); return;
     }
 
-    const imageUrl = `/uploads/disease/${path.basename(req.file.path)}`;
+    // With memory storage, file lives in req.file.buffer — no disk path needed.
+    const imageBuffer = req.file.buffer;
+    const mimeType = req.file.mimetype;
 
     // If authenticated, find user to save history
     let mongoUser = null;
@@ -26,7 +27,7 @@ export const analyzeDiseaseImage = async (req: AuthRequest, res: Response): Prom
       if (mongoUser) {
         const analysis = await DiseaseAnalysis.create({
           userId: mongoUser._id,
-          imageUrl,
+          imageUrl: `data:${mimeType};base64,[in-memory]`,
           language: lang,
           status: 'pending',
         });
@@ -40,7 +41,7 @@ export const analyzeDiseaseImage = async (req: AuthRequest, res: Response): Prom
       const lat = req.body.lat ? parseFloat(req.body.lat) : undefined;
       const lon = req.body.lon ? parseFloat(req.body.lon) : undefined;
       
-      const result = await analyzeImage(req.file.path, requestLang, lat, lon);
+      const result = await analyzeImage(imageBuffer, mimeType, requestLang, lat, lon);
 
       if (analysisId) {
         await DiseaseAnalysis.findByIdAndUpdate(analysisId, {
@@ -51,7 +52,6 @@ export const analyzeDiseaseImage = async (req: AuthRequest, res: Response): Prom
 
       successResponse(res, {
         analysisId,
-        imageUrl,
         ...result,
       });
     } catch (analysisErr) {
