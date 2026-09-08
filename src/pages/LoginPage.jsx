@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Leaf, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { auth, googleProvider } from '../config/firebase';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../config/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
   const { t } = useTranslation();
@@ -16,22 +17,28 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleGoogleLogin = () => {
-    // Do not use async/await before signInWithPopup.
-    // The browser requires the popup to open IMMEDIATELY from the click event.
-    // Setting state or awaiting before calling it triggers the browser's Popup Blocker!
-    signInWithPopup(auth, googleProvider)
-      .then(() => {
-        navigate('/');
-      })
-      .catch((err) => {
-        console.error("Firebase Error:", err);
-        if (err.code === 'auth/popup-blocked') {
-          setError('[auth/popup-blocked] Your browser blocked the Google Login window. Please allow popups for localhost or click the popup-blocker icon in your URL bar.');
-        } else {
-          setError(`[${err.code}] ${err.message}`);
-        }
-      });
+  const { loginWithGoogle } = useAuth();
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await loginWithGoogle();
+      navigate('/');
+    } catch (err) {
+      console.error("Firebase Error:", err);
+      if (err.code === 'auth/popup-blocked') {
+        setError('[auth/popup-blocked] Your browser blocked the Google Login window. Please allow popups.');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('You cancelled the Google login. Please try again.');
+      } else if (err.code === 'auth/network-request-failed') {
+        setError('Network error. Please check your internet connection.');
+      } else {
+        setError(`Authentication failed: ${err.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEmailAuth = async (e) => {
@@ -166,12 +173,8 @@ const LoginPage = () => {
               className="w-full py-3 px-4 bg-white hover:bg-gray-50 rounded-xl flex items-center justify-center gap-3 font-bold text-gray-700 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-70 border-none"
             >
               <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-              {t('login.continueGoogle')}
+              {t('login.continueGoogle') || 'Continue with Google'}
             </button>
-            
-            <Link to="/" className="inline-block mt-4 text-green-100 font-medium hover:text-white hover:underline underline-offset-4 transition-colors">
-              {t('login.continueGuest')}
-            </Link>
           </div>
           
           <p className="text-center mt-8 text-green-50/80 font-medium">

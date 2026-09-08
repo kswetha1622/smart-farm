@@ -4,9 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { Menu, X, Bell, User, Leaf } from 'lucide-react';
 import { LanguageSelector } from '../ui/LanguageSelector';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
 
 export const Navbar = () => {
   const { t } = useTranslation();
+  const { currentUser, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -78,9 +80,15 @@ export const Navbar = () => {
               <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-danger-red rounded-full border-2 border-dark-green"></span>
             </button>
             
-            <Link to="/login" className="hidden md:flex bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-lg transition-colors">
-              <User size={20} />
-            </Link>
+            {currentUser ? (
+              <button onClick={() => logout()} title="Logout" className="hidden md:flex bg-danger-red/20 hover:bg-danger-red/40 text-white p-2.5 rounded-lg transition-colors">
+                <User size={20} />
+              </button>
+            ) : (
+              <Link to="/login" className="hidden md:flex bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-lg transition-colors">
+                <User size={20} />
+              </Link>
+            )}
 
             {/* Mobile Menu Toggle */}
             <button 
@@ -121,7 +129,6 @@ export const Navbar = () => {
               ))}
               
               <div className="h-px bg-white/10 my-4" />
-              
               <div className="grid grid-cols-2 gap-4">
                 <Link 
                   to="/settings"
@@ -130,13 +137,22 @@ export const Navbar = () => {
                 >
                   {t('nav.settings')}
                 </Link>
-                <Link 
-                  to="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="bg-white/5 p-4 rounded-xl text-center text-white font-medium hover:bg-white/10 flex items-center justify-center gap-2"
-                >
-                  <User size={20} /> {t('nav.login')}
-                </Link>
+                {currentUser ? (
+                  <button 
+                    onClick={() => { logout(); setMobileMenuOpen(false); }}
+                    className="bg-danger-red/20 text-danger-red p-4 rounded-xl text-center font-bold hover:bg-danger-red/30 flex items-center justify-center gap-2"
+                  >
+                    Logout
+                  </button>
+                ) : (
+                  <Link 
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="bg-white/5 p-4 rounded-xl text-center text-white font-medium hover:bg-white/10 flex items-center justify-center gap-2"
+                  >
+                    <User size={20} /> Login
+                  </Link>
+                )}
               </div>
             </div>
           </motion.div>

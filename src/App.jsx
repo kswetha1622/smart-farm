@@ -1,11 +1,12 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/layout/Navbar';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { Footer } from './components/layout/Footer';
 import { LocationProvider } from './context/LocationContext';
 
-// Pages (to be created)
+// Pages
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import SatelliteAnalysisPage from './pages/SatelliteAnalysisPage';
@@ -17,31 +18,73 @@ import SettingsPage from './pages/SettingsPage';
 import AboutPage from './pages/AboutPage';
 import HelpPage from './pages/HelpPage';
 
+const ProtectedRoute = ({ children }) => {
+  const { currentUser } = useAuth();
+  
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
+const PublicRoute = ({ children }) => {
+  const { currentUser } = useAuth();
+  
+  if (currentUser) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
+
+// Layout wrapper to hide Navbar/Footer on login page
+const AppLayout = ({ children }) => {
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login';
+
+  if (isLoginPage) {
+    return <div className="min-h-screen flex flex-col">{children}</div>;
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen relative">
+      <Navbar />
+      <main className="flex-grow">{children}</main>
+      <Footer />
+      <MobileBottomNav />
+    </div>
+  );
+};
+
 const App = () => {
   return (
-    <LocationProvider>
-      <BrowserRouter>
-        <div className="flex flex-col min-h-screen relative">
-          <Navbar />
-          <main className="flex-grow">
+    <AuthProvider>
+      <LocationProvider>
+        <BrowserRouter>
+          <AppLayout>
             <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/satellite-analysis" element={<SatelliteAnalysisPage />} />
-              <Route path="/crop-advisor" element={<CropAdvisorPage />} />
-              <Route path="/weather" element={<WeatherPage />} />
-              <Route path="/disease-detection" element={<DiseaseDetectionPage />} />
-              <Route path="/voice-assistant" element={<VoiceAssistantPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/help" element={<HelpPage />} />
+              {/* Public route */}
+              <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+              
+              {/* Protected routes */}
+              <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+              <Route path="/satellite-analysis" element={<ProtectedRoute><SatelliteAnalysisPage /></ProtectedRoute>} />
+              <Route path="/crop-advisor" element={<ProtectedRoute><CropAdvisorPage /></ProtectedRoute>} />
+              <Route path="/weather" element={<ProtectedRoute><WeatherPage /></ProtectedRoute>} />
+              <Route path="/disease-detection" element={<ProtectedRoute><DiseaseDetectionPage /></ProtectedRoute>} />
+              <Route path="/voice-assistant" element={<ProtectedRoute><VoiceAssistantPage /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/about" element={<ProtectedRoute><AboutPage /></ProtectedRoute>} />
+              <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
+              
+              {/* Catch all */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </main>
-          <Footer />
-          <MobileBottomNav />
-        </div>
-      </BrowserRouter>
-    </LocationProvider>
+          </AppLayout>
+        </BrowserRouter>
+      </LocationProvider>
+    </AuthProvider>
   );
 };
 
