@@ -12,6 +12,15 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
+      // If user exists but email is not verified, log them out and ignore
+      if (user && !user.emailVerified) {
+        await signOut(auth);
+        setCurrentUser(null);
+        localStorage.removeItem('token');
+        setLoading(false);
+        return;
+      }
+
       setCurrentUser(user);
       if (user) {
         const token = await user.getIdToken();
