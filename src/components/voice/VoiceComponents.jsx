@@ -1,7 +1,7 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVoice } from '../../hooks/useVoice';
-import { Mic, Send, Trash2, StopCircle, CheckCircle, MoreHorizontal } from 'lucide-react';
+import { Mic, Send, Trash2, StopCircle, CheckCircle, MoreHorizontal, Copy, RefreshCw, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from '../../context/LocationContext';
 
@@ -17,12 +17,14 @@ const SILENCE_STOP_MS = 8000;  // 8 s â†’ auto stop
 export const VoiceAssistant = () => {
   const { t, i18n } = useTranslation();
 
-  // â”€â”€ Chat state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€ Chat state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  // 🎙️ Chat state 🎙️
   const [messages,   setMessages]   = useState([]);
   const [history,    setHistory]    = useState([]);
   const [processing, setProcessing] = useState(false);
   const [textInput,  setTextInput]  = useState('');
   const [errorMsg,   setErrorMsg]   = useState('');
+  const [copiedIndex, setCopiedIndex] = useState(null);
+  const [lastQuestion, setLastQuestion] = useState(null);
 
   // â”€â”€ Recording state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [isListening,     setIsListening]     = useState(false);
@@ -202,16 +204,20 @@ export const VoiceAssistant = () => {
     };
   }, [i18n.language, clearSilenceTimers]);
 
-  // â”€â”€ Submit to AI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ——————————————————————————————————————————————————————————————————————————  // 🎙️ Submit to AI 🎙️
   const handleUserSubmit = async (text) => {
     if (!text.trim() || processing) return;
     setProcessing(true);
     setErrorMsg('');
+    setLastQuestion(text);
     setMessages(prev => [...prev, { sender: 'farmer', text }]);
     setTextInput('');
 
     try {
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+      // Limit history to the last 6 messages to prevent context overflow and repetition
+      const limitedHistory = history.slice(-6);
+      
       const payload = {
         text,
         language: i18n.language,
@@ -220,7 +226,7 @@ export const VoiceAssistant = () => {
           lng: locationState.lon,
           displayString: locationState.displayString
         },
-        history
+        history: limitedHistory
       };
 
       const token = localStorage.getItem('token');
@@ -240,20 +246,40 @@ export const VoiceAssistant = () => {
 
       const aiResponse = data.data?.answer || data.data?.text || 'No response received.';
       setMessages(prev => [...prev, { sender: 'assistant', text: aiResponse }]);
-      setHistory(prev => [
-        ...prev,
-        { role: 'user',      content: text },
-        { role: 'assistant', content: aiResponse }
-      ]);
+      
+      setHistory(prev => {
+        const newHistory = [
+          ...prev,
+          { role: 'user', content: text },
+          { role: 'assistant', content: aiResponse }
+        ];
+        // Keep max 10 messages in total history state
+        return newHistory.slice(-10);
+      });
+
       if (data.data?.speakable) speak(aiResponse);
 
     } catch (err) {
-      console.error(err);
-      setErrorMsg(`Error: ${err.message || 'Could not reach the AI assistant.'}`);
-      setMessages(prev => [...prev, { sender: 'assistant', text: 'Sorry, I am having trouble connecting. Please try again.' }]);
+      console.error('Voice/AI Error:', err);
+      setErrorMsg('Could not reach the AI service. Please try again.');
+      // Remove the last user message from UI since it failed, or let it stay and show error
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleRetry = () => {
+    if (lastQuestion) {
+      // Remove the failed user message from UI if we want a clean retry
+      setMessages(prev => prev.filter((m, i) => i !== prev.length - 1 || m.sender !== 'farmer'));
+      handleUserSubmit(lastQuestion);
+    }
+  };
+
+  const handleCopy = (text, index) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
   };
 
   const clearChat = () => {
@@ -311,13 +337,22 @@ export const VoiceAssistant = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             key={i}
-            className={`max-w-[85%] p-4 rounded-2xl ${
+            className={`max-w-[85%] p-4 rounded-2xl relative group ${
               msg.sender === 'farmer'
                 ? 'bg-primary-green text-white self-end rounded-tr-sm shadow-sm'
                 : 'bg-white shadow-sm border border-gray-100 text-gray-800 self-start rounded-tl-sm'
             }`}
           >
             <p className="text-base leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+            {msg.sender === 'assistant' && (
+              <button 
+                onClick={() => handleCopy(msg.text, i)}
+                className="absolute top-2 right-2 p-1.5 bg-gray-50 text-gray-400 hover:text-primary-green rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-gray-100"
+                title="Copy text"
+              >
+                {copiedIndex === i ? <Check size={14} className="text-primary-green" /> : <Copy size={14} />}
+              </button>
+            )}
           </motion.div>
         ))}
 
@@ -344,8 +379,14 @@ export const VoiceAssistant = () => {
         )}
 
         {errorMsg && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center border border-red-100">
-            {errorMsg}
+          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center border border-red-100 flex flex-col items-center gap-2">
+            <p>{errorMsg}</p>
+            <button 
+              onClick={handleRetry}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 rounded-md text-red-700 font-medium transition-colors"
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
           </div>
         )}
         <div ref={chatEndRef} />

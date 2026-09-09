@@ -24,8 +24,19 @@ const LoginPage = () => {
     setError(null);
     setMessage(null);
     loginWithGoogle()
-      .then(() => {
-        // Google sets emailVerified to true automatically
+      .then(async (userCredential) => {
+        // Trigger login notification securely via backend
+        try {
+          const token = await userCredential.user.getIdToken();
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+          await fetch(`${BACKEND_URL}/api/auth/notify-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ method: 'Google' })
+          });
+        } catch (e) {
+          console.error("Failed to send login notification", e);
+        }
         navigate('/');
       })
       .catch((err) => {
@@ -91,6 +102,19 @@ const LoginPage = () => {
           await logout();
           setError('Please verify your email before logging in. Check your inbox for the verification link.');
           return;
+        }
+
+        // Trigger login notification securely via backend
+        try {
+          const token = await userCredential.user.getIdToken();
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+          await fetch(`${BACKEND_URL}/api/auth/notify-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ method: 'Email/Password' })
+          });
+        } catch (e) {
+          console.error("Failed to send login notification", e);
         }
         
         // On success, go to dashboard

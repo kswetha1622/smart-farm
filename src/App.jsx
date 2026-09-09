@@ -17,6 +17,8 @@ import VoiceAssistantPage from './pages/VoiceAssistantPage';
 import SettingsPage from './pages/SettingsPage';
 import AboutPage from './pages/AboutPage';
 import HelpPage from './pages/HelpPage';
+import ProfilePage from './pages/ProfilePage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 const ProtectedRoute = ({ children }) => {
   const { currentUser } = useAuth();
@@ -41,16 +43,16 @@ const PublicRoute = ({ children }) => {
 // Layout wrapper to hide Navbar/Footer on login page
 const AppLayout = ({ children }) => {
   const location = useLocation();
-  const isLoginPage = location.pathname === '/login';
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/reset-password' || location.pathname === '/__/auth/action';
 
-  if (isLoginPage) {
+  if (isAuthPage) {
     return <div className="min-h-screen flex flex-col">{children}</div>;
   }
 
   return (
-    <div className="flex flex-col min-h-screen relative">
+    <div className="flex flex-col min-h-screen relative bg-gray-50">
       <Navbar />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow pt-20">{children}</main>
       <Footer />
       <MobileBottomNav />
     </div>
@@ -66,6 +68,8 @@ const App = () => {
             <Routes>
               {/* Public route */}
               <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+              <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
+              <Route path="/__/auth/action" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
               
               {/* Protected routes */}
               <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
@@ -75,6 +79,7 @@ const App = () => {
               <Route path="/disease-detection" element={<ProtectedRoute><DiseaseDetectionPage /></ProtectedRoute>} />
               <Route path="/voice-assistant" element={<ProtectedRoute><VoiceAssistantPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
               <Route path="/about" element={<ProtectedRoute><AboutPage /></ProtectedRoute>} />
               <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
               

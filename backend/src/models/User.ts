@@ -11,6 +11,7 @@ export interface IUser extends Document {
   district?: string;
   state?: string;
   totalLandAcres?: number;
+  lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +28,7 @@ const UserSchema = new Schema<IUser>(
     district: { type: String },
     state: { type: String },
     totalLandAcres: { type: Number, min: 0 },
+    lastLoginAt: { type: Date },
   },
   { timestamps: true }
 );
