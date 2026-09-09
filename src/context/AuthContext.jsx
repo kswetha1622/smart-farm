@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signOut, signInWithPopup } from 'firebase/auth';
+import { onIdTokenChanged, signOut, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 
 const AuthContext = createContext();
@@ -11,8 +11,33 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onIdTokenChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        const token = await user.getIdToken();
+        localStorage.setItem('token', token);
+
+        // Sync with backend MongoDB
+        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+        try {
+          await fetch(`${BACKEND_URL}/api/auth/profile`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              name: user.displayName || 'Farmer',
+              email: user.email,
+              profileImage: user.photoURL || ''
+            })
+          });
+        } catch (e) {
+          console.error("Backend sync failed:", e);
+        }
+      } else {
+        localStorage.removeItem('token');
+      }
       setLoading(false);
     });
 
