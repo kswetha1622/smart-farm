@@ -19,14 +19,8 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const loginWithGoogle = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      return result.user;
-    } catch (error) {
-      console.error("Google Sign-in Error:", error);
-      throw error;
-    }
+  const loginWithGoogle = () => {
+    return signInWithPopup(auth, googleProvider);
   };
 
   const logout = async () => {

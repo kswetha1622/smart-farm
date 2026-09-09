@@ -19,26 +19,32 @@ const LoginPage = () => {
 
   const { loginWithGoogle } = useAuth();
 
-  const handleGoogleLogin = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      await loginWithGoogle();
-      navigate('/');
-    } catch (err) {
-      console.error("Firebase Error:", err);
-      if (err.code === 'auth/popup-blocked') {
-        setError('[auth/popup-blocked] Your browser blocked the Google Login window. Please allow popups.');
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        setError('You cancelled the Google login. Please try again.');
-      } else if (err.code === 'auth/network-request-failed') {
-        setError('Network error. Please check your internet connection.');
-      } else {
-        setError(`Authentication failed: ${err.message}`);
-      }
-    } finally {
-      setLoading(false);
-    }
+  const handleGoogleLogin = () => {
+    // Calling login immediately prevents popup blocking
+    setError(null);
+    loginWithGoogle()
+      .then(() => {
+        // Successful login, ProtectedRoute will auto-redirect, 
+        // but we navigate to / explicitly as well
+        navigate('/');
+      })
+      .catch((err) => {
+        console.error("Firebase Error:", err);
+        setLoading(false);
+        if (err.code === 'auth/popup-blocked') {
+          setError('Your browser blocked the Google Login window. Please allow popups.');
+        } else if (err.code === 'auth/popup-closed-by-user') {
+          setError('You cancelled the Google login. Please try again.');
+        } else if (err.code === 'auth/network-request-failed') {
+          setError('Network error. Please check your internet connection.');
+        } else if (err.code === 'auth/operation-not-allowed') {
+          setError('Google Sign-in is not enabled. Please enable it in your Firebase Console -> Authentication -> Sign-in method.');
+        } else if (err.code === 'auth/unauthorized-domain') {
+          setError('This domain is not authorized for Google Sign-in. Add it in Firebase Console.');
+        } else {
+          setError(`Authentication failed: ${err.message}`);
+        }
+      });
   };
 
   const handleEmailAuth = async (e) => {
